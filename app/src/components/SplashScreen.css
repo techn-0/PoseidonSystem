@@ -1,0 +1,67 @@
+/* 스플래시 화면 스타일 */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(37, 107, 199, 0.95); /* 불투명한 배경 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.splash-screen.fade-in {
+  opacity: 1;
+}
+
+.splash-screen.fade-out {
+  opacity: 0;
+}
+
+.splash-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.splash-logo {
+  max-width: 600px;
+  max-height: 600px;
+  width: auto;
+  height: auto;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
+  animation: logoGlow 2s ease-in-out;
+}
+
+@keyframes logoGlow {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .splash-logo {
+    max-width: 200px;
+    max-height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .splash-logo {
+    max-width: 150px;
+    max-height: 150px;
+  }
+}

@@ -3,12 +3,14 @@ import { getToken, removeToken, auth } from './api';
 import MapPanel from './components/MapPanel';
 import Sidebar from './components/Sidebar';
 import LoginModal from './components/LoginModal';
+import SplashScreen from './components/SplashScreen';
 import './styles.css';
 
 function App() {
   const [user, setUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const mapRef = useRef(null);
 
@@ -45,6 +47,14 @@ function App() {
       mapRef.current.moveToLocation(lat, lng);
     }
   };
+
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
 
   if (loading) {
     return <div className="loading">로딩 중...</div>;
