@@ -40,3 +40,45 @@
 .read-the-docs {
   color: #888;
 }
+
+/* 미세먼지 데이터 표시 스타일 */
+.dust-data {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+}
+
+.dust-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 5px 0;
+}
+
+.dust-label {
+  font-weight: bold;
+  color: #333;
+}
+
+.dust-value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #2196F3;
+}
+
+.dust-grade {
+  font-size: 12px;
+  color: #666;
+  margin-left: 5px;
+}
+
+.dust-time {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}

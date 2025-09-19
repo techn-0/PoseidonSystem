@@ -120,4 +120,9 @@ export const airkorea = {
   getTMCoordinates: async (umdName) => {
     return apiRequest(`/airkorea/tm-coordinates?umdName=${encodeURIComponent(umdName)}`);
   },
+  
+  // 실시간 미세먼지 농도 조회
+  getDustRealtime: async (stationName) => {
+    return apiRequest(`/airkorea/dust-realtime/${encodeURIComponent(stationName)}`);
+  }
 };
