@@ -11,6 +11,7 @@ console.log('KMA_SERVICE_KEY:', process.env.KMA_SERVICE_KEY ? '설정됨' : '설
 const authRouter = require('./auth');
 const kmaRouter = require('./kma');
 const favoritesRouter = require('./favorites');
+const { router: airkoreaRouter } = require('./airkorea');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -26,6 +27,7 @@ app.use(express.json());
 app.use('/auth', authRouter);
 app.use('/kma', kmaRouter);
 app.use('/favorites', favoritesRouter);
+app.use('/airkorea', airkoreaRouter);
 
 // Health check
 app.get('/health', (req, res) => {

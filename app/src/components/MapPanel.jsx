@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import L from 'leaflet';
+import { airkorea } from '../api';
 
 // Leaflet 기본 아이콘 설정
 delete L.Icon.Default.prototype._getIconUrl;
@@ -12,12 +13,14 @@ L.Icon.Default.mergeOptions({
 const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]); // 여러 마커들을 관리
+  const markersRef = useRef([]); // 기상 마커들을 관리
+  const dustMarkersRef = useRef([]); // 미세먼지 마커들을 관리
   
   const [position, setPosition] = useState([37.5665, 126.9780]); // 서울시청 기본값
   const [loading, setLoading] = useState(false);
   const [selectedMarkerData, setSelectedMarkerData] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [showDustStations, setShowDustStations] = useState(false); // 미세먼지 측정소 표시 여부
 
   // 현재 위치 획득
   useEffect(() => {
@@ -103,10 +106,101 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
     setLoading(false);
   }, [onUpdateTime]);
 
+  // 미세먼지 측정소 데이터 로드
+  const loadDustStations = useCallback(async () => {
+    console.log('미세먼지 측정소 데이터 요청');
+    setLoading(true);
+    
+    // 기존 미세먼지 마커들 제거
+    dustMarkersRef.current.forEach(marker => {
+      mapInstanceRef.current.removeLayer(marker);
+    });
+    dustMarkersRef.current = [];
+    
+    try {
+      const response = await airkorea.getDustStations();
+      console.log('미세먼지 측정소 API 응답:', response);
+      
+      if (response && response.success && response.stations && response.stations.length > 0) {
+        console.log(`${response.stations.length}개 미세먼지 측정소 로드됨`);
+        
+        // 각 측정소에 마커 생성
+        response.stations.forEach(station => {
+          console.log(`${station.cityName} 미세먼지 측정소 마커 생성:`, station.lat, station.lon);
+          
+          // 미세먼지 측정소는 사각형 마커로 구분
+          const marker = L.marker([station.lat, station.lon], {
+            icon: L.divIcon({
+              className: 'dust-station-marker',
+              html: `<div style="
+                background-color: ${getDustMarkerColor(station)};
+                width: 20px;
+                height: 20px;
+                border: 2px solid #fff;
+                border-radius: 4px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              "></div>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            })
+          }).addTo(mapInstanceRef.current);
+
+          // 마커에 데이터 저장
+          marker.dustData = station;
+          
+          // 마커에 측정소명 툴팁 추가
+          marker.bindTooltip(`${station.cityName} (${station.stationName})`, {
+            permanent: false,
+            direction: 'top',
+            offset: [0, -15]
+          });
+          
+          // 마커 클릭 시 미세먼지 정보 표시
+          marker.on('click', () => {
+            console.log('미세먼지 측정소 마커 클릭:', station);
+            setSelectedMarkerData({
+              ...station,
+              dataType: 'dust',
+              name: station.cityName
+            });
+          });
+          
+          dustMarkersRef.current.push(marker);
+        });
+        
+        console.log('미세먼지 마커 추가 완료. 총 마커 수:', dustMarkersRef.current.length);
+      } else {
+        console.error('미세먼지 측정소 API 에러 또는 데이터 없음:', response);
+      }
+    } catch (error) {
+      console.error('미세먼지 측정소 데이터 로드 실패:', error);
+    }
+    
+    setLoading(false);
+  }, []);
+
+  // 미세먼지 측정소 표시/숨김 토글
+  const toggleDustStations = useCallback(() => {
+    setShowDustStations(prev => {
+      const newValue = !prev;
+      if (newValue) {
+        loadDustStations();
+      } else {
+        // 미세먼지 마커들 제거
+        dustMarkersRef.current.forEach(marker => {
+          mapInstanceRef.current.removeLayer(marker);
+        });
+        dustMarkersRef.current = [];
+      }
+      return newValue;
+    });
+  }, [loadDustStations]);
+
   // 외부에서 호출할 수 있는 함수들을 노출
   useImperativeHandle(ref, () => ({
     refreshWeatherData: loadWeatherDataForArea,
     getLastUpdateTime: () => lastUpdateTime,
+    toggleDustStations,
     moveToLocation: (lat, lng) => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.setView([lat, lng], mapInstanceRef.current.getZoom());
@@ -120,7 +214,7 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
       }
       return { lat: position[0], lng: position[1] };
     }
-  }), [loadWeatherDataForArea, lastUpdateTime, position]);
+  }), [loadWeatherDataForArea, lastUpdateTime, position, toggleDustStations]);
 
   // 마커 색상 결정 (강수량에 따라)
   const getMarkerColor = (data) => {
@@ -128,6 +222,13 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
     if (data.rn1 > 1) return '#f39c12';  // 적은 비: 주황색
     if (data.pty > 0) return '#3498db';  // 강수형태 있음: 파란색
     return '#2ecc71'; // 맑음: 녹색
+  };
+
+  // 미세먼지 측정소 마커 색상 결정
+  const getDustMarkerColor = (station) => {
+    if (station.error) return '#95a5a6'; // 에러: 회색
+    if (station.isDefault) return '#f39c12'; // 기본값: 주황색
+    return '#9b59b6'; // 정상: 보라색
   };
 
   // 지도 초기화
@@ -177,7 +278,39 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
         )}
         {loading && <p>데이터를 가져오는 중...</p>}
         
-        {!loading && selectedMarkerData && (
+        {!loading && selectedMarkerData && selectedMarkerData.dataType === 'dust' && (
+          <div className="current-weather">
+            <h5>{selectedMarkerData.name} 미세먼지 측정소</h5>
+            <div className="data-source">
+              <span className="source-badge source-dust">
+                에어코리아
+              </span>
+              <span className="station-id">측정소: {selectedMarkerData.stationName}</span>
+            </div>
+            <ul>
+              <li>위치: {selectedMarkerData.lat.toFixed(4)}, {selectedMarkerData.lon.toFixed(4)}</li>
+              <li>주소: {selectedMarkerData.addr}</li>
+              {selectedMarkerData.distance !== undefined && (
+                <li>거리: {selectedMarkerData.distance}km</li>
+              )}
+              {selectedMarkerData.tmX && selectedMarkerData.tmY && (
+                <li>TM좌표: X={selectedMarkerData.tmX}, Y={selectedMarkerData.tmY}</li>
+              )}
+            </ul>
+            {selectedMarkerData.isDefault && (
+              <div className="test-data-notice">
+                ℹ️ 기본 측정소 정보입니다
+              </div>
+            )}
+            {selectedMarkerData.error && (
+              <div className="error-notice">
+                ⚠️ 데이터 조회 오류: {selectedMarkerData.error}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {!loading && selectedMarkerData && selectedMarkerData.dataType !== 'dust' && (
           <div className="current-weather">
             <h5>{selectedMarkerData.name} 기상정보</h5>
             <div className="data-source">
@@ -213,7 +346,18 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
         )}
 
         {!loading && !selectedMarkerData && (
-          <p>지도의 컬러 마커를 클릭하여 해당 도시의 기상정보를 확인하세요.</p>
+          <div>
+            <p>지도의 컬러 마커를 클릭하여 해당 도시의 기상정보를 확인하세요.</p>
+            <p>사각형 마커를 클릭하여 미세먼지 측정소 정보를 확인하세요.</p>
+            <div className="map-controls">
+              <button 
+                onClick={toggleDustStations}
+                className={`dust-toggle-btn ${showDustStations ? 'active' : ''}`}
+              >
+                {showDustStations ? '미세먼지 측정소 숨기기' : '미세먼지 측정소 표시'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     );

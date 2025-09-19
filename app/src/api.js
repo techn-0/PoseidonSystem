@@ -93,3 +93,31 @@ export const search = {
     return response.json();
   },
 };
+
+// 에어코리아 API
+export const airkorea = {
+  // 주요 도시 미세먼지 측정소 정보 조회
+  getDustStations: async () => {
+    return apiRequest('/airkorea/dust-stations');
+  },
+  
+  // 특정 지역 측정소 목록 조회
+  getStations: async (addr = '', numOfRows = 50, pageNo = 1) => {
+    const params = new URLSearchParams();
+    if (addr) params.append('addr', addr);
+    params.append('numOfRows', numOfRows);
+    params.append('pageNo', pageNo);
+    
+    return apiRequest(`/airkorea/stations?${params.toString()}`);
+  },
+  
+  // 근접 측정소 조회
+  getNearbyStations: async (lat, lon) => {
+    return apiRequest(`/airkorea/nearby-stations?lat=${lat}&lon=${lon}`);
+  },
+  
+  // TM 좌표 조회
+  getTMCoordinates: async (umdName) => {
+    return apiRequest(`/airkorea/tm-coordinates?umdName=${encodeURIComponent(umdName)}`);
+  },
+};
