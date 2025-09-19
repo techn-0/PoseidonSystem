@@ -1,5 +1,5 @@
 // API client module
-const BASE_URL = 'http://localhost:4000';
+const BASE_URL = 'http://localhost:4000/api';
 
 // 토큰 관리
 export const getToken = () => localStorage.getItem('auth_token');
@@ -124,5 +124,58 @@ export const airkorea = {
   // 실시간 미세먼지 농도 조회
   getDustRealtime: async (stationName) => {
     return apiRequest(`/airkorea/dust-realtime/${encodeURIComponent(stationName)}`);
-  }
+  },
+
+  // CAI 지수 조회
+  getCAI: async (stationName) => {
+    return apiRequest(`/airkorea/cai/${encodeURIComponent(stationName)}`);
+  },
+
+  // 대기질 예보 조회
+  getForecast: async () => {
+    return apiRequest('/airkorea/forecast');
+  },
+
+  // 초미세먼지 주간예보 조회
+  getWeekForecast: async () => {
+    return apiRequest('/airkorea/week-forecast');
+  },
+
+  // 시도별 측정소 목록 조회
+  getAllStations: async (sidoName) => {
+    return apiRequest(`/airkorea/all-stations/${encodeURIComponent(sidoName)}`);
+  },
+};
+
+// 미세먼지 등급별 색상 및 텍스트 유틸리티
+export const dustUtils = {
+  getGradeColor: (grade) => {
+    switch (String(grade)) {
+      case '1': return '#4CAF50'; // 좋음 - 초록색
+      case '2': return '#FFC107'; // 보통 - 노란색
+      case '3': return '#FF9800'; // 나쁨 - 주황색
+      case '4': return '#F44336'; // 매우나쁨 - 빨간색
+      default: return '#9E9E9E'; // 알 수 없음 - 회색
+    }
+  },
+
+  getGradeText: (grade) => {
+    switch (String(grade)) {
+      case '1': return '좋음';
+      case '2': return '보통';
+      case '3': return '나쁨';
+      case '4': return '매우나쁨';
+      default: return '알 수 없음';
+    }
+  },
+
+  getCAIGradeText: (grade) => {
+    switch (String(grade)) {
+      case '1': return '좋음';
+      case '2': return '보통';
+      case '3': return '나쁨';
+      case '4': return '매우나쁨';
+      default: return '알 수 없음';
+    }
+  },
 };

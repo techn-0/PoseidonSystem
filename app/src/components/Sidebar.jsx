@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { search, favorites } from '../api';
+import { search, favorites, dustUtils } from '../api';
 
-function Sidebar({ user, mapRef, lastUpdateTime, onLocationChange }) {
+function Sidebar({ user, mapRef, lastUpdateTime, onLocationChange, selectedMarkerData }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [favoritesList, setFavoritesList] = useState([]);
@@ -147,6 +147,143 @@ function Sidebar({ user, mapRef, lastUpdateTime, onLocationChange }) {
         </div>
 
         {/* 검색 섹션 */}
+        {/* 선택된 마커 데이터 표시 */}
+        {selectedMarkerData && (
+          <div className="sidebar-section">
+            <h4>📍 {selectedMarkerData.name || selectedMarkerData.stationName}</h4>
+            
+            {selectedMarkerData.dataType === 'dust-realtime' && (
+              <div style={{ marginBottom: '15px' }}>
+                <div style={{ fontSize: '14px', marginBottom: '10px', color: '#666' }}>
+                  실시간 대기질 정보 {selectedMarkerData.isMockData && '(샘플 데이터)'}
+                </div>
+                
+                {/* PM10 정보 */}
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>미세먼지(PM10)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 'bold' }}>{selectedMarkerData.pm10Value || '-'}㎍/㎥</span>
+                      {selectedMarkerData.pm10Grade && (
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          color: 'white',
+                          backgroundColor: dustUtils.getGradeColor(selectedMarkerData.pm10Grade)
+                        }}>
+                          {dustUtils.getGradeText(selectedMarkerData.pm10Grade)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* PM2.5 정보 */}
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>초미세먼지(PM2.5)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 'bold' }}>{selectedMarkerData.pm25Value || '-'}㎍/㎥</span>
+                      {selectedMarkerData.pm25Grade && (
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          color: 'white',
+                          backgroundColor: dustUtils.getGradeColor(selectedMarkerData.pm25Grade)
+                        }}>
+                          {dustUtils.getGradeText(selectedMarkerData.pm25Grade)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* CAI 지수 정보 */}
+                {selectedMarkerData.khaiValue && (
+                  <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: '#e3f2fd', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>통합대기환경지수(CAI)</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 'bold' }}>{selectedMarkerData.khaiValue}</span>
+                        {selectedMarkerData.khaiGrade && (
+                          <span style={{
+                            padding: '2px 6px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            color: 'white',
+                            backgroundColor: dustUtils.getGradeColor(selectedMarkerData.khaiGrade)
+                          }}>
+                            {dustUtils.getGradeText(selectedMarkerData.khaiGrade)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 기타 대기질 지수 */}
+                <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                  <div>이산화황: {selectedMarkerData.so2Value || '-'} {selectedMarkerData.so2Grade && `(${dustUtils.getGradeText(selectedMarkerData.so2Grade)})`}</div>
+                  <div>일산화탄소: {selectedMarkerData.coValue || '-'} {selectedMarkerData.coGrade && `(${dustUtils.getGradeText(selectedMarkerData.coGrade)})`}</div>
+                  <div>오존: {selectedMarkerData.o3Value || '-'} {selectedMarkerData.o3Grade && `(${dustUtils.getGradeText(selectedMarkerData.o3Grade)})`}</div>
+                  <div>이산화질소: {selectedMarkerData.no2Value || '-'} {selectedMarkerData.no2Grade && `(${dustUtils.getGradeText(selectedMarkerData.no2Grade)})`}</div>
+                </div>
+                
+                {selectedMarkerData.dataTime && (
+                  <div style={{ fontSize: '11px', color: '#999', marginTop: '8px', textAlign: 'center' }}>
+                    측정시간: {selectedMarkerData.dataTime}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {selectedMarkerData.dataType === 'cai' && (
+              <div style={{ marginBottom: '15px' }}>
+                <div style={{ fontSize: '14px', marginBottom: '10px', color: '#666' }}>
+                  통합대기환경지수(CAI) {selectedMarkerData.isMockData && '(샘플 데이터)'}
+                </div>
+                
+                {/* CAI 메인 정보 */}
+                <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#e3f2fd', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
+                    {selectedMarkerData.khaiValue || '-'}
+                  </div>
+                  {selectedMarkerData.khaiGrade && (
+                    <div style={{
+                      padding: '4px 12px',
+                      borderRadius: '16px',
+                      fontSize: '14px',
+                      color: 'white',
+                      backgroundColor: dustUtils.getGradeColor(selectedMarkerData.khaiGrade),
+                      display: 'inline-block'
+                    }}>
+                      {dustUtils.getGradeText(selectedMarkerData.khaiGrade)}
+                    </div>
+                  )}
+                </div>
+                
+                {/* 세부 오염물질 정보 */}
+                <div style={{ fontSize: '12px' }}>
+                  <div style={{ marginBottom: '4px' }}>미세먼지(PM10): {selectedMarkerData.pm10Value || '-'}㎍/㎥</div>
+                  <div style={{ marginBottom: '4px' }}>초미세먼지(PM2.5): {selectedMarkerData.pm25Value || '-'}㎍/㎥</div>
+                  <div style={{ marginBottom: '4px' }}>이산화황: {selectedMarkerData.so2Value || '-'}</div>
+                  <div style={{ marginBottom: '4px' }}>일산화탄소: {selectedMarkerData.coValue || '-'}</div>
+                  <div style={{ marginBottom: '4px' }}>오존: {selectedMarkerData.o3Value || '-'}</div>
+                  <div style={{ marginBottom: '4px' }}>이산화질소: {selectedMarkerData.no2Value || '-'}</div>
+                </div>
+                
+                {selectedMarkerData.dataTime && (
+                  <div style={{ fontSize: '11px', color: '#999', marginTop: '8px', textAlign: 'center' }}>
+                    측정시간: {selectedMarkerData.dataTime}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        
         <div className="sidebar-section">
           <h4>위치 검색</h4>
           <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>

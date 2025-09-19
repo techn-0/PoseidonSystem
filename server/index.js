@@ -24,10 +24,10 @@ app.use(cors());
 app.use(express.json());
 
 // 라우터 마운트
-app.use('/auth', authRouter);
-app.use('/kma', kmaRouter);
-app.use('/favorites', favoritesRouter);
-app.use('/airkorea', airkoreaRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/kma', kmaRouter);
+app.use('/api/favorites', favoritesRouter);
+app.use('/api/airkorea', airkoreaRouter);
 
 // Health check
 app.get('/health', (req, res) => {

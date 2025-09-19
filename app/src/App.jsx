@@ -12,6 +12,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [selectedMarkerData, setSelectedMarkerData] = useState(null);
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -87,10 +88,12 @@ function App() {
           mapRef={mapRef}
           lastUpdateTime={lastUpdateTime}
           onLocationChange={handleLocationChange}
+          selectedMarkerData={selectedMarkerData}
         />
         <MapPanel 
           ref={mapRef}
           onUpdateTime={setLastUpdateTime}
+          onMarkerSelect={setSelectedMarkerData}
         />
       </main>
 

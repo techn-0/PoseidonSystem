@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { airkorea } from '../api';
+import { airkorea, dustUtils } from '../api';
 
 // Leaflet 기본 아이콘 설정
 delete L.Icon.Default.prototype._getIconUrl;
@@ -11,7 +11,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
+const MapPanel = forwardRef(({ onUpdateTime, onMarkerSelect }, ref) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]); // 기상 마커들을 관리
@@ -58,7 +58,7 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
     
     try {
       // 여러 지점의 기상 데이터 조회
-      const response = await fetch(`http://localhost:4000/kma/weather-points`);
+      const response = await fetch(`http://localhost:4000/api/kma/weather-points`);
       const data = await response.json();
       
       console.log('API 응답:', data);
@@ -143,20 +143,20 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
               className: 'dust-station-marker',
               html: `<div style="
                 background-color: ${getDustMarkerColor(station)};
-                width: 20px;
-                height: 20px;
+                width: 30px;
+                height: 30px;
                 border: 2px solid #fff;
-                border-radius: 50%;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                border-radius: 4px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 color: white;
-                font-size: 10px;
+                font-size: 12px;
                 font-weight: bold;
-              ">${station.stationName ? station.stationName.substring(0, 1) : 'D'}</div>`,
-              iconSize: [24, 24],
-              iconAnchor: [12, 12]
+              ">${station.pm10Value || 'N/A'}</div>`,
+              iconSize: [34, 34],
+              iconAnchor: [17, 17]
             })
           }).addTo(mapInstanceRef.current);
 
@@ -173,11 +173,13 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
           // 마커 클릭 시 미세먼지 정보 표시 및 실시간 데이터 조회
           marker.on('click', () => {
             console.log('미세먼지 측정소 마커 클릭:', station);
-            setSelectedMarkerData({
-              ...station,
-              dataType: 'dust',
-              name: station.cityName
-            });
+            if (onMarkerSelect) {
+              onMarkerSelect({
+                ...station,
+                dataType: 'dust',
+                name: station.cityName
+              });
+            }
             // 실시간 미세먼지 데이터 조회
             handleRealtimeData(station.stationName);
           });
@@ -223,22 +225,41 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
     return '#2ecc71'; // 맑음: 녹색
   };
 
-  // 미세먼지 마커 색상 결정 함수
+  // 미세먼지 마커 색상 결정 함수 (Grade 값 활용)
   const getDustMarkerColor = (station) => {
-    if (!station.pm10Value && !station.pm25Value) {
-      return '#999'; // 데이터 없음
+    // Grade 값이 있으면 우선 사용
+    if (station.pm10Grade) {
+      return dustUtils.getGradeColor(station.pm10Grade);
     }
     
-    // PM2.5 기준으로 색상 결정 (더 민감한 지표)
-    const pm25 = station.pm25Value || 0;
+    // Grade 값이 없으면 기존 방식 사용
     const pm10 = station.pm10Value || 0;
     
-    // WHO 기준 적용
-    if (pm25 <= 15 && pm10 <= 30) return '#4CAF50'; // 좋음 (녹색)
-    if (pm25 <= 25 && pm10 <= 50) return '#FFC107'; // 보통 (노란색)
-    if (pm25 <= 37.5 && pm10 <= 75) return '#FF9800'; // 나쁨 (주황색)
-    if (pm25 <= 75 && pm10 <= 150) return '#F44336'; // 매우나쁨 (빨간색)
-    return '#9C27B0'; // 위험 (보라색)
+    if (pm10 === 0) {
+      return '#999'; // 데이터 없음 (회색)
+    }
+    
+    // PM10 기준 4단계 등급
+    if (pm10 <= 30) return '#4CAF50'; // 좋음 (녹색) 0~30µg/m³
+    if (pm10 <= 80) return '#FFC107'; // 보통 (노란색) 31~80µg/m³
+    if (pm10 <= 150) return '#FF9800'; // 나쁨 (주황색) 81~150µg/m³
+    return '#F44336'; // 매우나쁨 (빨간색) 151µg/m³ 이상
+  };
+
+  // 미세먼지 등급 텍스트 반환 함수 (Grade 값 활용)
+  const getDustGradeText = (station) => {
+    // Grade 값이 있으면 우선 사용
+    if (station.pm10Grade) {
+      return dustUtils.getGradeText(station.pm10Grade);
+    }
+    
+    // Grade 값이 없으면 기존 방식 사용
+    const pm10Value = station.pm10Value || 0;
+    if (!pm10Value || pm10Value === 0) return '데이터 없음';
+    if (pm10Value <= 30) return '좋음';
+    if (pm10Value <= 80) return '보통';
+    if (pm10Value <= 150) return '나쁨';
+    return '매우나쁨';
   };
 
   // 미세먼지 상태 텍스트 반환 함수
@@ -268,7 +289,7 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
         const realtimeData = response.data;
         
         // 사이드바에 실시간 데이터 표시
-        setSelectedMarkerData({
+        const markerData = {
           name: stationName,
           dataType: 'dust-realtime',
           stationName: stationName,
@@ -277,8 +298,22 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
           dataTime: realtimeData.dataTime,
           pm10Grade: realtimeData.pm10Grade,
           pm25Grade: realtimeData.pm25Grade,
+          so2Grade: realtimeData.so2Grade,
+          coGrade: realtimeData.coGrade,
+          o3Grade: realtimeData.o3Grade,
+          no2Grade: realtimeData.no2Grade,
+          khaiGrade: realtimeData.khaiGrade,
+          khaiValue: realtimeData.khaiValue,
+          so2Value: realtimeData.so2Value,
+          coValue: realtimeData.coValue,
+          o3Value: realtimeData.o3Value,
+          no2Value: realtimeData.no2Value,
           isMockData: response.isMockData
-        });
+        };
+        
+        if (onMarkerSelect) {
+          onMarkerSelect(markerData);
+        }
       } else {
         console.error('실시간 데이터 응답 오류:', response);
         alert('실시간 데이터를 불러올 수 없습니다.');
@@ -286,6 +321,46 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
     } catch (error) {
       console.error('실시간 데이터 조회 오류:', error);
       alert('실시간 데이터 조회 중 오류가 발생했습니다.');
+    }
+  };
+
+  // CAI 지수 조회 함수
+  const handleCAIData = async (stationName) => {
+    try {
+      console.log('CAI 지수 조회 시작:', stationName);
+      const response = await airkorea.getCAI(stationName);
+      console.log('CAI 지수 API 응답:', response);
+      
+      if (response.success && response.data) {
+        const caiData = response.data;
+        
+        // 사이드바에 CAI 데이터 표시
+        const caiMarkerData = {
+          name: stationName,
+          dataType: 'cai',
+          stationName: stationName,
+          khaiValue: caiData.khaiValue,
+          khaiGrade: caiData.khaiGrade,
+          pm10Value: caiData.pm10Value,
+          pm25Value: caiData.pm25Value,
+          so2Value: caiData.so2Value,
+          coValue: caiData.coValue,
+          o3Value: caiData.o3Value,
+          no2Value: caiData.no2Value,
+          dataTime: caiData.dataTime,
+          isMockData: response.isMockData
+        };
+        
+        if (onMarkerSelect) {
+          onMarkerSelect(caiMarkerData);
+        }
+      } else {
+        console.error('CAI 데이터 응답 오류:', response);
+        alert('CAI 데이터를 불러올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('CAI 데이터 조회 오류:', error);
+      alert('CAI 데이터 조회 중 오류가 발생했습니다.');
     }
   };
 
@@ -385,9 +460,7 @@ const MapPanel = forwardRef(({ onUpdateTime }, ref) => {
               <div className="dust-item">
                 <span className="dust-label">PM10</span>
                 <span className="dust-value">{selectedMarkerData.pm10Value || 'N/A'} μg/m³</span>
-                {selectedMarkerData.pm10Grade && (
-                  <span className="dust-grade">(등급 {selectedMarkerData.pm10Grade})</span>
-                )}
+                <span className="dust-grade">({getDustGradeText(selectedMarkerData)})</span>
               </div>
               <div className="dust-item">
                 <span className="dust-label">PM2.5</span>
